@@ -40,9 +40,14 @@ class FakeUpdates:
 def test_join_drains_final_update() -> None:
     process = FakeProcess(hangs=False)
     updates = FakeUpdates()
+    received: list[object] = []
 
-    received, forced = join_draining(
-        cast(mp.Process, process), cast(connection.Connection, updates), 0, 0.1
+    forced = join_draining(
+        cast(mp.Process, process),
+        cast(connection.Connection, updates),
+        received,
+        0,
+        0.1,
     )
 
     assert received == ['final update']
@@ -52,9 +57,14 @@ def test_join_drains_final_update() -> None:
 
 def test_join_terminates_stalled_process() -> None:
     process = FakeProcess(hangs=True)
+    received: list[object] = []
 
-    received, forced = join_draining(
-        cast(mp.Process, process), cast(connection.Connection, FakeUpdates()), 0, 0.1
+    forced = join_draining(
+        cast(mp.Process, process),
+        cast(connection.Connection, FakeUpdates()),
+        received,
+        0,
+        0.1,
     )
 
     assert received == ['final update']

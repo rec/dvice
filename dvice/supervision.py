@@ -5,13 +5,13 @@ import threading
 from multiprocessing import connection
 
 
-def join_draining(
+def join_draining[T](
     process: mp.Process,
     updates: connection.Connection,
+    received: list[T],
     timeout: float,
     stop_timeout: float,
-) -> tuple[list[object], bool]:
-    received: list[object] = []
+) -> bool:
     finished = threading.Event()
     reader = threading.Thread(
         target=_drain_updates,
@@ -31,12 +31,12 @@ def join_draining(
         process.join(stop_timeout)
     finished.set()
     reader.join(stop_timeout)
-    return received, forced
+    return forced
 
 
-def _drain_updates(
+def _drain_updates[T](
     updates: connection.Connection,
-    received: list[object],
+    received: list[T],
     finished: threading.Event,
 ) -> None:
     while True:
