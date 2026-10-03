@@ -1,0 +1,32 @@
+[project]
+name = "dvice"
+version = "0.1.0"
+description = "Manage unreliable audio devices"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.13.4",
+    "reccy",
+    "sounddevice",
+    "threa>=1.9.0",
+    "tyro>=1.0.13",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "ty", "pyupgrade"]
+
+[tool.uv.sources]
+reccy = { git = "ssh://git@github.com/rec/reccy.git", branch = "main" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
