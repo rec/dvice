@@ -16,7 +16,7 @@ dependencies = [
 dev = ["pytest", "ruff", "ty", "pyupgrade"]
 
 [tool.uv.sources]
-reccy = { git = "ssh://git@github.com/rec/reccy.git", branch = "main" }
+reccy = { git = "https://github.com/rec/reccy.git", branch = "main" }
 
 [build-system]
 requires = ["hatchling"]
