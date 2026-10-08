@@ -38,16 +38,6 @@ native enumeration/JSON work. Multiple pollers each create their own helper.
 **Recommendation:** measure enumeration and fresh-helper startup cost on realistic backends;
 do not presume 10 Hz is cheap on every machine.
 
-### 16. Interrupts, parent exit, and helper descendants lack an ownership policy
-
-**Deferred by user agreement: platform-specific crash/tree ownership.** The
-single-process helper contract and host cleanup obligations are now documented.
-One-shot queries clean up on interruption; streaming cleanup retains handles for
-a caller to retry. Abrupt parent death can still leave a direct helper alive.
-Arbitrary descendant trees are not supported. A future guarantee requires a
-separate platform-specific design, including Windows job objects; do not claim
-that graceful cleanup or process isolation provides crash supervision.
-
 ## P2/P3: public API clarity and project boundaries
 
 ### 22. Release policy and inherited dependency behavior remain unpinned

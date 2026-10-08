@@ -17,12 +17,13 @@ MAX_SNAPSHOT_BYTES = 1024 * 1024
 
 def query_devices(command: Sequence[str] | None = None) -> list[DeviceDict]:
     """Query in isolation; failures raise rather than implying device absence."""
-    command = command or [sys.executable, '-m', 'dvice.worker']
+    builtin = not command
+    command = command or [sys.executable, '-m', 'dvice.worker', '--watch-parent']
     process = subprocess.Popen(
         command,
         text=True,
         start_new_session=True,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if builtin else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
     )
     output = bytearray()
@@ -56,6 +57,8 @@ def query_devices(command: Sequence[str] | None = None) -> list[DeviceDict]:
                 process.kill()
                 process.wait(DEVICE_QUERY_TIMEOUT)
         finally:
+            if process.stdin is not None:
+                process.stdin.close()
             if process.stdout is not None:
                 process.stdout.close()
 

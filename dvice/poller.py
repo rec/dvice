@@ -88,8 +88,10 @@ class DeviceQueryStream:
 
     def __init__(self, command: Sequence[str] | None = None) -> None:
         self.command = list(
-            command or [sys.executable, '-m', 'dvice.worker', '--stream']
+            command
+            or [sys.executable, '-m', 'dvice.worker', '--stream', '--watch-parent']
         )
+        self._watch_parent = not command
         self.updates: Queue[list[DeviceDict]] = Queue(maxsize=1)
         self.process: subprocess.Popen[str] | None = None
         self.reader: threading.Thread | None = None
@@ -115,7 +117,7 @@ class DeviceQueryStream:
                     self.command,
                     stdout=subprocess.PIPE,
                     stderr=None,
-                    stdin=subprocess.DEVNULL,
+                    stdin=subprocess.PIPE if self._watch_parent else subprocess.DEVNULL,
                     text=True,
                     start_new_session=True,
                 )
@@ -190,6 +192,8 @@ class DeviceQueryStream:
                 self._healthy_since = None
         if (process := self.process) is None:
             return
+        if process.stdin is not None:
+            process.stdin.close()
         if process.poll() is None:
             process.terminate()
             try:

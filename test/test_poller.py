@@ -63,6 +63,7 @@ class FakeQueryStream:
 
 class FakeDeadProcess:
     stdout = None
+    stdin = None
 
     def terminate(self) -> None:
         pass
@@ -79,12 +80,15 @@ class FakeDeadProcess:
 
 class FakeLiveProcess:
     stdout = None
+    stdin = None
 
     def poll(self) -> None:
         return None
 
 
 class FakeUnresponsiveProcess:
+    stdin = None
+
     def __init__(self) -> None:
         self.killed = False
         self.stdout = FakeStdout()
@@ -343,6 +347,8 @@ def test_reader_cleanup_does_not_require_pipe_eof(
     read_descriptor, write_descriptor = os.pipe()
 
     class PipeProcess:
+        stdin = None
+
         def __init__(self) -> None:
             self.stdout = open(read_descriptor)
             self.exitcode: int | None = None

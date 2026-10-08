@@ -74,10 +74,16 @@ Physical hot-plug and audio-service restart qualification on macOS, Windows, and
 Linux is separate from the unit suite; mocked snapshots do not prove hardware
 recovery. Helpers are trusted local commands, not a sandbox for arbitrary code.
 Custom commands must implement the newline-delimited device-list protocol in a
-single process and must not spawn descendants. dvice owns only its direct helper;
-it does not guarantee automatic cleanup after the host is abruptly killed or
-crashes. Hosts must arrange graceful cleanup, including retrying `stop()` if an
-interrupt aborts cleanup. Crash/process-tree ownership is deferred.
+single process and must not spawn descendants. dvice owns only its direct helper.
+The built-in helper watches a private stdin pipe held open by its parent and
+exits immediately on EOF, even if native enumeration is blocked. This also covers
+abrupt parent termination or a crash; it depends on the OS closing the parent's
+handles and scheduling the helper's watcher. It is not a hard real-time guarantee
+and cannot overcome an OS-uninterruptible process or a backend holding Python's
+interpreter lock indefinitely. Do not share or inherit the lifeline write handle.
+Custom helpers receive no lifeline and have no parent-death guarantee. Hosts must
+still arrange graceful cleanup, including retrying `stop()` if an interrupt aborts
+cleanup. Arbitrary process-tree ownership remains unsupported.
 
 For standalone streaming supervision, keep ownership explicit:
 
