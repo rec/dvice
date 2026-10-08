@@ -1,5 +1,7 @@
+import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import cast
@@ -97,8 +99,8 @@ class FakeUnresponsiveProcess:
     def kill(self) -> None:
         self.killed = True
 
-    def poll(self) -> int:
-        return -9 if self.killed else 1
+    def poll(self) -> int | None:
+        return -9 if self.killed else None
 
 
 class FakeStdout:
@@ -107,16 +109,6 @@ class FakeStdout:
 
     def close(self) -> None:
         self.closed = True
-
-
-class FakeStreamProcess:
-    stdout = [
-        '[{"max_input_channels": 1, "name": "Old"}]\n',
-        '[{"max_input_channels": 1, "name": "New"}]\n',
-    ]
-
-    def poll(self) -> None:
-        return None
 
 
 def test_poller_keeps_only_latest_input_devices(
@@ -208,15 +200,6 @@ def test_query_stream_kills_unresponsive_process() -> None:
     assert stream.process is None
 
 
-def test_query_stream_keeps_only_latest_update() -> None:
-    stream = DeviceQueryStream()
-    stream.process = cast(subprocess.Popen[str], FakeStreamProcess())
-
-    stream._read()
-
-    assert stream.devices() == [{'max_input_channels': 1, 'name': 'New'}]
-
-
 def test_query_stream_uses_restart_backoff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -263,3 +246,332 @@ def test_query_stream_retries_helper_start_failure(
 
     assert stream.process is None
     assert stream.next_start == now + poller.RESTART_BACKOFF_SECONDS
+
+
+def helper_command(mode: str) -> list[str]:
+    return [
+        sys.executable,
+        str(Path(__file__).parent / 'helpers/query_worker.py'),
+        mode,
+    ]
+
+
+def wait_for_update(stream: DeviceQueryStream) -> list[DeviceDict]:
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        if (devices := stream.devices()) is not None:
+            return devices
+        time.sleep(0.005)
+    pytest.fail('helper did not produce an update')
+
+
+def test_stop_cancels_idle_reader_and_prevents_implicit_start() -> None:
+    stream = DeviceQueryStream(helper_command('idle'))
+    stream.start()
+    process, reader = stream.process, stream.reader
+    try:
+        started = time.monotonic()
+        stream.stop()
+        assert time.monotonic() - started < 1
+        assert process is not None and process.poll() is not None
+        assert reader is not None and not reader.is_alive()
+        assert stream.devices() is None
+        assert stream.process is None
+    finally:
+        stream.stop()
+
+
+def test_stop_serializes_with_helper_creation(monkeypatch: pytest.MonkeyPatch) -> None:
+    entered, release, requested = (
+        threading.Event(),
+        threading.Event(),
+        threading.Event(),
+    )
+    popen = subprocess.Popen
+
+    def paused_popen(*args: object, **kwargs: object) -> subprocess.Popen[str]:
+        entered.set()
+        assert release.wait(3)
+        return popen(*args, **kwargs)
+
+    monkeypatch.setattr(poller.subprocess, 'Popen', paused_popen)
+    stream = DeviceQueryStream(helper_command('idle'))
+    starter = threading.Thread(target=stream.start)
+
+    def stop() -> None:
+        requested.set()
+        stream.stop()
+
+    stopper = threading.Thread(target=stop)
+    starter.start()
+    try:
+        assert entered.wait(3)
+        stopper.start()
+        assert requested.wait(3)
+    finally:
+        release.set()
+        starter.join(3)
+        if stopper.ident is not None:
+            stopper.join(3)
+        stream.stop()
+    assert not starter.is_alive() and not stopper.is_alive()
+    assert stream.devices() is None
+    assert stream.process is None
+
+
+def test_reader_cleanup_does_not_require_pipe_eof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    read_descriptor, write_descriptor = os.pipe()
+
+    class PipeProcess:
+        def __init__(self) -> None:
+            self.stdout = open(read_descriptor)
+            self.exitcode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.exitcode
+
+        def terminate(self) -> None:
+            self.exitcode = 0
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert self.exitcode is not None
+            return self.exitcode
+
+        def kill(self) -> None:
+            self.exitcode = -9
+
+    process = PipeProcess()
+    fake_process = cast(subprocess.Popen[str], process)
+
+    def popen(*args: object, **kwargs: object) -> subprocess.Popen[str]:
+        return fake_process
+
+    monkeypatch.setattr(poller.subprocess, 'Popen', popen)
+    stream = DeviceQueryStream()
+    try:
+        stream.start()
+        os.write(write_descriptor, b'[{"name":"Mic","max_input_channels":1}]\n')
+        assert wait_for_update(stream) == [{'name': 'Mic', 'max_input_channels': 1}]
+        reader = stream.reader
+        started = time.monotonic()
+        stream.stop()
+        assert time.monotonic() - started < 1
+        assert reader is not None and not reader.is_alive()
+        assert process.stdout.closed
+    finally:
+        os.close(write_descriptor)
+        stream.stop()
+        process.stdout.close()
+
+
+def test_stop_wakes_poller_with_long_interval() -> None:
+    device = DevicePoller(60, helper_command('healthy'))
+    device.start()
+    try:
+        device.stop()
+        device.join(1)
+        assert not device.thread.is_alive()
+        assert device.query_stream.process is None
+        device.poll()
+        assert device.latest() is None
+    finally:
+        device.stop()
+        device.join(3)
+
+
+def test_timed_join_does_not_stop_live_helper() -> None:
+    device = DevicePoller(0.01, helper_command('healthy'))
+    device.start()
+    try:
+        process = device.query_stream.process
+        device.join(0.01)
+        assert device.thread.is_alive()
+        assert device.query_stream.process is process
+    finally:
+        device.stop()
+        device.join(3)
+
+
+def test_poller_cannot_start_twice_or_restart() -> None:
+    device = DevicePoller(0.01, helper_command('idle'))
+    device.start()
+    process = device.query_stream.process
+    try:
+        with pytest.raises(RuntimeError):
+            device.start()
+        assert device.query_stream.process is process
+    finally:
+        device.stop()
+        device.join(3)
+    with pytest.raises(RuntimeError):
+        device.start()
+    assert device.query_stream.process is None
+
+
+def test_poller_stopped_before_start_cannot_launch_helper() -> None:
+    device = DevicePoller(1, helper_command('idle'))
+    device.stop()
+    with pytest.raises(RuntimeError):
+        device.start()
+    assert device.query_stream.process is None
+
+
+@pytest.mark.parametrize('interval', [0.0, -1.0, float('nan'), float('inf')])
+def test_poller_rejects_unusable_intervals(interval: float) -> None:
+    with pytest.raises(ValueError, match='finite and positive'):
+        DevicePoller(interval)
+
+
+def test_failed_reader_start_cleans_up_child(monkeypatch: pytest.MonkeyPatch) -> None:
+    children: list[subprocess.Popen[str]] = []
+    popen = subprocess.Popen
+
+    def remember(*args: object, **kwargs: object) -> subprocess.Popen[str]:
+        process = popen(*args, **kwargs)
+        children.append(process)
+        return process
+
+    def fail_start(thread: threading.Thread) -> None:
+        raise RuntimeError('thread limit')
+
+    monkeypatch.setattr(poller.subprocess, 'Popen', remember)
+    monkeypatch.setattr(threading.Thread, 'start', fail_start)
+    stream = DeviceQueryStream(helper_command('idle'))
+    with pytest.raises(RuntimeError, match='thread limit'):
+        stream.start()
+    assert len(children) == 1 and children[0].poll() is not None
+    assert stream.process is None
+    assert stream.next_start > time.monotonic()
+
+
+def test_failed_poller_start_cleans_up_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    start = threading.Thread.start
+
+    def fail_start(thread: threading.Thread) -> None:
+        if thread.name == 'QueryDevices':
+            start(thread)
+        else:
+            raise RuntimeError('thread limit')
+
+    monkeypatch.setattr(threading.Thread, 'start', fail_start)
+    device = DevicePoller(1, helper_command('idle'))
+    with pytest.raises(RuntimeError, match='thread limit'):
+        device.start()
+    assert device.query_stream.process is None
+
+
+def test_unresolved_shutdown_retains_process_ownership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class UnkillableProcess(FakeUnresponsiveProcess):
+        def kill(self) -> None:
+            pass
+
+    stream = DeviceQueryStream()
+    process = UnkillableProcess()
+    stream.process = cast(subprocess.Popen[str], process)
+    stream.stop()
+    assert stream.process is process
+    assert stream.devices() is None
+    stream.start()
+    assert stream.process is process
+
+
+def test_receiving_a_snapshot_does_not_reset_crash_backoff() -> None:
+    stream = DeviceQueryStream(helper_command('once_idle'))
+    stream.restart_backoff = 8
+    try:
+        assert wait_for_update(stream) == [{'name': 'Mic', 'max_input_channels': 1}]
+        assert stream.restart_backoff == 8
+        stream.restart()
+        assert stream.restart_backoff == 16
+    finally:
+        stream.stop()
+
+
+def test_consuming_old_snapshot_does_not_refresh_watchdog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stream = DeviceQueryStream(helper_command('once_idle'))
+    stream.start()
+    try:
+        deadline = time.monotonic() + 3
+        while stream.updates.empty() and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert not stream.updates.empty()
+        now = stream.last_update + poller.STREAM_TIMEOUT + 1
+        monkeypatch.setattr(poller.time, 'monotonic', lambda: now)
+        assert stream.devices() is None
+        assert stream.process is None
+        assert stream.updates.empty()
+    finally:
+        stream.stop()
+
+
+def test_stop_and_start_discard_previous_updates() -> None:
+    stream = DeviceQueryStream(helper_command('once_idle'))
+    stream.start()
+    try:
+        deadline = time.monotonic() + 3
+        while stream.updates.empty() and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert not stream.updates.empty()
+        stream.stop()
+        assert stream.updates.empty()
+        stream.command = helper_command('idle')
+        stream.start()
+        assert stream.devices() is None
+    finally:
+        stream.stop()
+
+
+def test_dead_helpers_do_not_deliver_queued_snapshots() -> None:
+    stream = DeviceQueryStream(helper_command('once_idle'))
+    stream.start()
+    try:
+        deadline = time.monotonic() + 3
+        while stream.updates.empty() and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert not stream.updates.empty()
+        assert stream.process is not None
+        stream.process.kill()
+        stream.process.wait(3)
+        assert stream.devices() is None
+        assert stream.updates.empty()
+    finally:
+        stream.stop()
+
+
+def test_backoff_resets_only_after_sustained_valid_updates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller, 'STREAM_TIMEOUT', 0.2)
+    stream = DeviceQueryStream(helper_command('healthy'))
+    stream.restart_backoff = 8
+    try:
+        wait_for_update(stream)
+        deadline = time.monotonic() + 3
+        while stream.restart_backoff != 1 and time.monotonic() < deadline:
+            stream.devices()
+            time.sleep(0.005)
+        assert stream.restart_backoff == 1
+    finally:
+        stream.stop()
+
+
+def test_oversized_unterminated_messages_are_rejected(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stream = DeviceQueryStream(helper_command('oversized'))
+    stream.start()
+    try:
+        deadline = time.monotonic() + 3
+        while 'exceeds byte limit' not in caplog.text and time.monotonic() < deadline:
+            assert stream.devices() is None
+            time.sleep(0.005)
+        assert 'exceeds byte limit' in caplog.text
+        assert stream.updates.empty()
+    finally:
+        stream.stop()
