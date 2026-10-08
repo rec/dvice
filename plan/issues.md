@@ -26,7 +26,7 @@ Further API changes require a user decision.
 
 ## P2: watchdog, exceptional conditions, and resources
 
-### 14. Enumeration cost and slow-consumer recovery latency need qualification
+### 14. Cross-platform enumeration cost still needs qualification
 
 **Confirmed tradeoff.** Finite positive polling intervals are now enforced and
 waits are interruptible. Very large consumer intervals still postpone supervision;
@@ -35,8 +35,11 @@ The worker enumerates every 0.1 seconds independently of the consumer interval.
 Slowing the consumer does not reduce
 native enumeration/JSON work. Multiple pollers each create their own helper.
 
-**Recommendation:** measure enumeration and fresh-helper startup cost on realistic backends;
-do not presume 10 Hz is cheap on every machine.
+**Partially qualified:** discovery-only measurements on macOS with four endpoints
+are recorded in `doc/discovery-performance.md`, with a reproducible benchmark.
+Cached enumeration is cheap there; fresh-helper startup dominates. Windows,
+Linux, larger inventories, and concurrent pollers remain unqualified. The cadence
+is unchanged; do not presume 10 Hz is cheap on every machine.
 
 ## P2/P3: public API clarity and project boundaries
 
@@ -53,7 +56,7 @@ unchanging inherited thread behavior.
 
 ## Testing and structure
 
-There are four nonempty package modules. No oversized file,
+There are five nonempty package modules. No oversized file,
 substantial internal duplication, or need to inline worker/supervision is evident:
 the worker is a real subprocess entry point and supervision has a distinct API.
 The latest-value helper is reused rather than duplicated. The empty `__init__.py`
@@ -62,8 +65,9 @@ does not create re-export ambiguity.
 The tests now cover blocked/idle real pipes, shutdown during start, partial-start
 cleanup, dead/stale generation rejection, malformed/oversized protocol, sustained
 health before resetting backoff, and interruptible interval waits. Remaining
-qualification includes helper descendants, parent death, and physical hot-plug
-and host-service recovery across supported platforms. Report physical results
+qualification includes built-in parent-death cleanup on Windows and Linux, and
+physical hot-plug and host-service recovery across supported platforms. Arbitrary
+helper descendants are unsupported by contract. Report physical results
 separately from unit tests.
 
 No new test framework is indicated. Do not unit-test external hardware behavior

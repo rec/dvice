@@ -25,6 +25,8 @@ devices, as a list in enumeration order. Every endpoint is preserved, including
 duplicate names and endpoints exposed by different host APIs. Descriptions retain
 the backend's host API and any supplied identity fields. List positions and
 PortAudio indices identify only the current enumeration, not persistent hardware.
+Positions in this input-only list are not PortAudio indices; output-only endpoints
+have been filtered out. dvice does not invent missing endpoint identifiers.
 dvice does not match, merge, or deduplicate endpoints across refreshes; renaming
 and reordering appear as the backend reports them. Consumers must define their
 own matching policy and must not assume display names are unique.
@@ -49,6 +51,10 @@ Healthy helpers are replaced every five seconds, without failure backoff, to
 refresh PortAudio initialization. No nested enumeration subprocess is needed.
 Discovery latency includes helper startup and the consumer polling interval;
 five seconds is a refresh cadence, not a sample-exact detection deadline.
+
+Discovery cost measurements and a repeatable, discovery-only benchmark are in
+[discovery-performance.md](doc/discovery-performance.md). The local macOS results
+do not establish cost or recovery bounds for other backends.
 
 Terminate, kill, and reader cleanup share a five-second budget per cleanup
 operation. OS process creation and waiting for a concurrent lifecycle operation
