@@ -48,24 +48,6 @@ backends on macOS, Windows, and Linux with unplug/replug, power cycle, reboot,
 same-name replacement, and host audio-service restart tests. Existing tests
 feed fabricated lists and cannot establish physical rediscovery.
 
-### 2. Query failure is represented as authoritative device absence
-
-**Confirmed.** `discovery.py:27-28` returns `[]` on timeout; `:45-48` returns
-`[]` on PortAudio errors. `DevicePoller.poll()` publishes `{}` for such a list.
-Actual absence, a hung query, and a failed audio backend are indistinguishable.
-Continuous PortAudio errors also count as successful watchdog updates.
-
-The current recs consumer treats missing entries as offline and stops their
-source processes. A backend fault can therefore become a false mass-removal
-event rather than an unknown observation. Conversely, the failing helper need
-never restart while it emits empty lists.
-
-**Recommendation:** distinguish successful empty enumeration from failed or
-unknown enumeration, with an explicit stale-state policy. Preserve failure
-information through both one-shot and streaming APIs. Test recovery from
-PortAudio errors without inventing removal observations. Existing timeout tests
-currently enshrine the ambiguous behavior and would need an intentional change.
-
 ### 3. Shutdown races with polling and helper restart
 
 **Possible, directly supported by the control flow.** `DevicePoller.stop()`
@@ -134,19 +116,6 @@ exit separately from escalation. Test a process that remains alive after kill;
 the current fake always becomes dead immediately when killed.
 
 ## P2: watchdog, exceptional conditions, and resources
-
-### 7. Malformed JSON values can keep a broken helper healthy indefinitely
-
-**Confirmed.** `_read()` queues any decodable JSON. `devices()` resets freshness
-and backoff before `DevicePoller.poll()` validates the value (`poller.py:141-145,
-48-55, 173-177`). A helper emitting `{}`, a number, or lists with missing fields
-never publishes useful snapshots, yet keeps postponing recovery. JSON syntax
-errors behave differently: they are dropped and eventually trigger timeout.
-
-**Recommendation:** only valid enumeration messages establish health. Separate
-protocol failure from genuine empty discovery and retain useful diagnostics.
-Test syntactically valid but structurally invalid messages for longer than the
-watchdog deadline, not only one rejected list.
 
 ### 8. Freshness measures consumption time, not observation time
 
@@ -297,20 +266,6 @@ declared preconditions; callers can get exceptions or defeat boundedness.
 the nominal budget `timeout + 2 * stop_timeout`, verified-exit responsibility,
 and the need to discard/recreate unsafe IPC after forced termination. This
 utility cannot itself guarantee recovery of arbitrary consumer state.
-
-### 18. Device validation accepts impossible values and promises too much typing
-
-**Confirmed.** Only string name and integer input-channel count are checked.
-Python booleans pass the integer check, negative channel counts pass the truthy
-filter, and empty names are accepted. Remaining dictionary values are unchecked.
-`DeviceDict` is a broad scalar dictionary alias, not a validated schema; the
-one-shot `cast` does not enforce even the streaming checks.
-
-**Recommendation:** define the minimum protocol contract required by consumers,
-including non-negative channel counts and usable names, without inventing fields
-the backend cannot supply. Align one-shot and streaming validation and test
-those boundaries. Decide where the portable descriptor belongs before moving
-types or adding a second representation.
 
 ## P2/P3: public API clarity and project boundaries
 

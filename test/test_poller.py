@@ -1,4 +1,7 @@
 import subprocess
+import sys
+import time
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -6,6 +9,30 @@ from reccy.device import DeviceDict
 
 from dvice import poller
 from dvice.poller import DevicePoller, DeviceQueryStream
+
+
+def test_invalid_messages_do_not_keep_helper_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller, 'STREAM_TIMEOUT', 0.15)
+    stream = DeviceQueryStream(
+        [
+            sys.executable,
+            str(Path(__file__).parent / 'helpers/query_worker.py'),
+            'invalid',
+        ]
+    )
+    stream.start()
+    process = stream.process
+    try:
+        deadline = time.monotonic() + 3
+        while stream.process is process and time.monotonic() < deadline:
+            assert stream.devices() is None
+            time.sleep(0.01)
+        assert stream.process is None
+        assert stream.restart_backoff == 2 * poller.RESTART_BACKOFF_SECONDS
+    finally:
+        stream.stop()
 
 
 class FakeQueryStream:

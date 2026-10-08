@@ -11,7 +11,7 @@ from typing import IO
 from reccy.device import DeviceDict
 from threa import HasThread
 
-from .discovery import DEVICE_QUERY_TIMEOUT
+from .discovery import DEVICE_QUERY_TIMEOUT, _validate_devices
 
 STREAM_TIMEOUT = DEVICE_QUERY_TIMEOUT
 RESTART_BACKOFF_SECONDS = 1.0
@@ -45,13 +45,10 @@ class DevicePoller(HasThread):
     def poll(self) -> None:
         if (devices := self.query_stream.devices()) is None:
             return
-        if not isinstance(devices, list) or any(
-            not isinstance(info, dict)
-            or not isinstance(info.get('name'), str)
-            or not isinstance(info.get('max_input_channels'), int)
-            for info in devices
-        ):
-            LOGGER.warning('Ignoring malformed device-query snapshot')
+        try:
+            devices = _validate_devices(devices)
+        except ValueError as error:
+            LOGGER.warning('Ignoring device-query snapshot: %s', error)
             return
         snapshot = {
             str(info['name']): info for info in devices if info['max_input_channels']
@@ -172,9 +169,11 @@ class DeviceQueryStream:
         try:
             for line in stream:
                 try:
-                    _put_latest(self.updates, json.loads(line))
-                except json.JSONDecodeError:
+                    devices = _validate_devices(json.loads(line))
+                except ValueError as error:
+                    LOGGER.warning('Ignoring device-query snapshot: %s', error)
                     continue
+                _put_latest(self.updates, devices)
         except (OSError, ValueError):
             return
 

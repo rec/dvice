@@ -1,4 +1,6 @@
 import subprocess
+import sys
+from types import SimpleNamespace
 from typing import Any, NoReturn
 
 import pytest
@@ -38,10 +40,47 @@ def test_query_does_not_receive_terminal_interrupts(
     assert kwargs['timeout'] == discovery.DEVICE_QUERY_TIMEOUT
 
 
-def test_query_timeout_is_empty_device_list(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_query_timeout_does_not_imply_absence(monkeypatch: pytest.MonkeyPatch) -> None:
     def timeout(*args: Any, **kwargs: Any) -> NoReturn:
         raise subprocess.TimeoutExpired(['dvice'], timeout=5)
 
     monkeypatch.setattr(subprocess, 'run', timeout)
 
-    assert discovery.query_devices() == []
+    with pytest.raises(subprocess.TimeoutExpired):
+        discovery.query_devices()
+
+
+def test_backend_failure_does_not_imply_absence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class BackendError(RuntimeError):
+        pass
+
+    def fail() -> NoReturn:
+        raise BackendError('audio service unavailable')
+
+    monkeypatch.setitem(sys.modules, 'sounddevice', SimpleNamespace(query_devices=fail))
+    with pytest.raises(BackendError):
+        discovery.devices_json()
+
+
+@pytest.mark.parametrize(
+    'output',
+    [
+        '{}',
+        'null',
+        '[{"name":"Mic"}]',
+        '[{"name":" ","max_input_channels":1}]',
+        '[{"name":"Mic","max_input_channels":true}]',
+        '[{"name":"Mic","max_input_channels":-1}]',
+    ],
+)
+def test_query_rejects_invalid_device_protocol(
+    output: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess([], 0, stdout=output)
+
+    monkeypatch.setattr(subprocess, 'run', run)
+    with pytest.raises(ValueError, match='Malformed device-query snapshot'):
+        discovery.query_devices()
