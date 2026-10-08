@@ -29,7 +29,8 @@ by user agreement while the name-keyed result contract is preserved.
 
 ### 5. Name-keyed snapshots silently discard distinct devices
 
-**Confirmed.** `poller.py:56-58` uses `info['name']` as the sole dictionary key.
+**Deferred by user agreement: result-contract change.** `DevicePoller.poll()`
+uses `info['name']` as the sole dictionary key.
 Two devices with the same display name collapse to the last entry. This can
 occur with identical interfaces or the same hardware exposed by different host
 APIs. Reordering enumeration can change which device survives. Renaming a
@@ -43,15 +44,6 @@ also enumeration-specific, not persistent hardware identities.
 identity, host API, and cross-refresh matching semantics. Do not promise stable
 identity where the backend lacks it. Test duplicate names, host-API duplicates,
 reordered lists, and renamed devices before selecting an API shape.
-
-### 6. join_process does not distinguish unresolved shutdown
-
-**Confirmed on the failure path.** `join_process()` returns `True` even if a process remains alive after
-the kill wait (`supervision.py:18-21`). Its boolean reports forced intervention,
-not verified exit. A caller can incorrectly assume resources are safe to reuse.
-
-**Recommendation:** expose verified exit separately from escalation. Test a process that remains alive after kill;
-the current fake always becomes dead immediately when killed.
 
 ## P2: watchdog, exceptional conditions, and resources
 
@@ -69,41 +61,19 @@ do not presume 10 Hz is cheap on every machine.
 
 ### 16. Interrupts, parent exit, and helper descendants lack an ownership policy
 
-**Possible / contract gap.** Helpers start in a new session and streaming helpers
-have no context-manager cleanup of their own. Parent crash or forgotten stop
-can leave a child alive. KeyboardInterrupt during streaming stop can interrupt
-cleanup before ownership fields are finalized. The one-shot `subprocess.run()`
-path has different built-in cleanup behavior and should not be conflated with
-streaming Popen ownership.
-
-`terminate()`/`kill()` target only the direct child, not an entire descendant
-tree. Custom commands are accepted, and can spawn descendants that retain pipes
-or survive shutdown. `join_process()` has the same direct-process scope. Python
-[documents descendant and IPC limitations of termination](https://docs.python.org/3.13/library/multiprocessing.html#process-and-exceptions).
-
-**Recommendation:** explicitly restrict helper commands or define descendant
-ownership, document host cleanup obligations, and test interrupted cleanup and
-parent death. Do not advertise process isolation as automatic orphan prevention.
-
-### 17. Forced multiprocessing termination can damage consumer IPC
-
-**Possible, consumer-dependent.** `supervision.join_process()` escalates without
-knowledge of the process's queues, pipes, locks, or shared resources. Python
-documents that forced termination can corrupt queues or leave locks held. A
-consumer that reuses those resources after a forced stop may lose liveness.
-Unstarted/closed processes and invalid/unbounded timeout inputs also have no
-declared preconditions; callers can get exceptions or defeat boundedness.
-
-**Recommendation:** document started-process and finite-timeout preconditions,
-the nominal budget `timeout + 2 * stop_timeout`, verified-exit responsibility,
-and the need to discard/recreate unsafe IPC after forced termination. This
-utility cannot itself guarantee recovery of arbitrary consumer state.
+**Deferred by user agreement: platform-specific crash/tree ownership.** The
+single-process helper contract and host cleanup obligations are now documented.
+One-shot queries clean up on interruption; streaming cleanup retains handles for
+a caller to retry. Abrupt parent death can still leave a direct helper alive.
+Arbitrary descendant trees are not supported. A future guarantee requires a
+separate platform-specific design, including Windows job objects; do not claim
+that graceful cleanup or process isolation provides crash supervision.
 
 ## P2/P3: public API clarity and project boundaries
 
 ### 22. Packaging and dependency ownership limit reuse and reproducibility
 
-**Confirmed tradeoff, P3.** dvice depends on reccy mainly for `DeviceDict`, tying
+**Deferred by user agreement: dependency policy unchanged.** dvice depends on reccy mainly for `DeviceDict`, tying
 a small device utility to a broader shared package and its Git source on moving
 `main`. The checked-in lockfile pins this checkout's resolution, but downstream
 applications resolving their own environments need not use that lockfile.

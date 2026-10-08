@@ -1,10 +1,14 @@
 import multiprocessing as mp
 from typing import cast
 
+import pytest
+
 from dvice.supervision import join_process
 
 
 class FakeProcess:
+    pid = 123
+
     def __init__(self, *, hangs: bool, ignores_terminate: bool = False) -> None:
         self.alive = hangs
         self.terminated = False
@@ -51,3 +55,35 @@ def test_join_kills_process_that_ignores_termination() -> None:
 
     assert forced
     assert process.killed
+
+
+def test_join_reports_unresolved_shutdown() -> None:
+    class UnkillableProcess(FakeProcess):
+        def kill(self) -> None:
+            self.killed = True
+
+    process = UnkillableProcess(hangs=True, ignores_terminate=True)
+    with pytest.raises(TimeoutError, match='still alive'):
+        join_process(cast(mp.Process, process), 0, 0)
+    assert process.alive and process.killed
+
+
+@pytest.mark.parametrize(
+    'timeout,stop_timeout', [(-1, 0), (0, -1), (float('inf'), 0), (0, float('nan'))]
+)
+def test_join_rejects_unbounded_or_negative_timeouts(
+    timeout: float, stop_timeout: float
+) -> None:
+    process = FakeProcess(hangs=True)
+    with pytest.raises(ValueError, match='finite and non-negative'):
+        join_process(cast(mp.Process, process), timeout, stop_timeout)
+    assert not process.terminated and not process.killed
+
+
+def test_join_rejects_unstarted_process() -> None:
+    process = mp.Process()
+    try:
+        with pytest.raises(ValueError, match='must be started'):
+            join_process(process, 0, 0)
+    finally:
+        process.close()

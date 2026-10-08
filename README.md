@@ -67,3 +67,33 @@ alone cannot establish that an existing audio stream survived a device reboot.
 Physical hot-plug and audio-service restart qualification on macOS, Windows, and
 Linux is separate from the unit suite; mocked snapshots do not prove hardware
 recovery. Helpers are trusted local commands, not a sandbox for arbitrary code.
+Custom commands must implement the newline-delimited device-list protocol in a
+single process and must not spawn descendants. dvice owns only its direct helper;
+it does not guarantee automatic cleanup after the host is abruptly killed or
+crashes. Hosts must arrange graceful cleanup, including retrying `stop()` if an
+interrupt aborts cleanup. Crash/process-tree ownership is deferred.
+
+For standalone streaming supervision, keep ownership explicit:
+
+```python
+from dvice.poller import DeviceQueryStream
+
+stream = DeviceQueryStream()
+try:
+    stream.start()
+    # Repeatedly call stream.devices() from the host's control loop.
+finally:
+    stream.stop()
+```
+
+Dependency ownership and version policy are unchanged: descriptors come from
+reccy, its source follows `main`, and threa supplies the inherited thread API.
+This checkout's lockfile is not a downstream application's dependency pin.
+
+`join_process()` in `dvice.supervision` accepts a started, unclosed multiprocessing
+process and finite non-negative timeouts. Its nominal wait budget is
+`timeout + 2 * stop_timeout`. On verified exit it returns whether termination
+was forced; it raises `TimeoutError` if the process survives the final kill wait.
+The caller retains ownership on failure. Forced termination can corrupt consumer
+queues or leave locks held, so discard/recreate affected IPC before recovery.
+This utility does not repair arbitrary consumer state or terminate descendants.
