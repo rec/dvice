@@ -39,6 +39,10 @@ them when backoff permits. `restart()` schedules replacement with backoff rather
 than guaranteeing an immediate new process. Backoff resets only after five
 seconds of continuous valid observations, not after one line in a crash loop.
 Old-generation and dead-helper observations are not delivered as fresh data.
+Healthy helpers are replaced every five seconds, without failure backoff, to
+refresh PortAudio initialization. No nested enumeration subprocess is needed.
+Discovery latency includes helper startup and the consumer polling interval;
+five seconds is a refresh cadence, not a sample-exact detection deadline.
 
 Terminate, kill, and reader cleanup share a five-second budget per cleanup
 operation. OS process creation and waiting for a concurrent lifecycle operation

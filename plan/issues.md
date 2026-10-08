@@ -27,30 +27,6 @@ by user agreement while the name-keyed result contract is preserved.
 
 ## P1: discovery and lifecycle
 
-### 1. Repeated enumeration does not refresh PortAudio initialization
-
-**Possible, backend-dependent.** `discovery.py:36-48` imports sounddevice once
-and repeatedly calls `query_devices()` in a long-lived helper. There is no
-reinitialization or periodic fresh-process enumeration. A helper is replaced
-only when it exits or stops supplying updates (`poller.py:134-165`).
-
-PortAudio device lists can be fixed at initialization. A cached list keeps
-arriving every 0.1 seconds and therefore passes the watchdog while unplugged
-devices remain listed or newly connected/rebooted devices remain absent.
-Repeated enumeration alone is not evidence of hot-plug support.
-
-The [PortAudio hot-plug discussion](https://github.com/PortAudio/portaudio/wiki/HotPlug)
-describes this limitation and a proposed API, not a guarantee that the shipped
-backend has that API. Installed sounddevice calls `Pa_GetDeviceCount()` and
-initializes on import. Its [implementation](https://python-sounddevice.readthedocs.io/en/latest/_modules/sounddevice.html)
-supports the code-path observation, not a claim that all backends are stale.
-
-**Recommendation:** choose a bounded refresh policy in the isolated helper,
-using supported lifecycle operations or fresh processes. Qualify actual packaged
-backends on macOS, Windows, and Linux with unplug/replug, power cycle, reboot,
-same-name replacement, and host audio-service restart tests. Existing tests
-feed fabricated lists and cannot establish physical rediscovery.
-
 ### 5. Name-keyed snapshots silently discard distinct devices
 
 **Confirmed.** `poller.py:56-58` uses `info['name']` as the sole dictionary key.

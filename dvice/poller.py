@@ -16,6 +16,7 @@ from threa import HasThread
 from .discovery import DEVICE_QUERY_TIMEOUT, MAX_SNAPSHOT_BYTES, _validate_devices
 
 STREAM_TIMEOUT = DEVICE_QUERY_TIMEOUT
+DEVICE_REFRESH_INTERVAL = 5.0
 RESTART_BACKOFF_SECONDS = 1.0
 MAX_RESTART_BACKOFF_SECONDS = 30.0
 LOGGER = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ class DeviceQueryStream:
         self._reader_stop = threading.Event()
         self._stopped = False
         self._healthy_since: float | None = None
+        self._started_at = 0.0
 
     def start(self) -> None:
         """Enable queries and start a helper if its backoff has elapsed."""
@@ -124,8 +126,7 @@ class DeviceQueryStream:
             self.process = process
             with self._updates_lock:
                 _take_latest(self.updates)
-                self.last_update = time.monotonic()
-                self._healthy_since = None
+                self._started_at = time.monotonic()
                 self._reader_stop = threading.Event()
             try:
                 self.reader = threading.Thread(
@@ -163,7 +164,14 @@ class DeviceQueryStream:
                 ):
                     self.next_start = 0.0
                     self.restart_backoff = RESTART_BACKOFF_SECONDS
-                return _take_latest(self.updates)
+                latest = _take_latest(self.updates)
+            if time.monotonic() - self._started_at >= DEVICE_REFRESH_INTERVAL:
+                self._close(refreshing=True)
+                if self.process is None:
+                    self.next_start = 0.0
+                    self.start()
+                return None
+            return latest
 
     def restart(self) -> None:
         """Schedule replacement with backoff; stop() disables automatic retries."""
@@ -173,12 +181,13 @@ class DeviceQueryStream:
             self._close()
             self._backoff()
 
-    def _close(self) -> None:
+    def _close(self, *, refreshing: bool = False) -> None:
         deadline = time.monotonic() + STREAM_TIMEOUT
         with self._updates_lock:
             self._reader_stop.set()
             _take_latest(self.updates)
-            self._healthy_since = None
+            if not refreshing:
+                self._healthy_since = None
         if (process := self.process) is None:
             return
         if process.poll() is None:
@@ -216,7 +225,10 @@ class DeviceQueryStream:
             )
             return True
         with self._updates_lock:
-            if time.monotonic() - self.last_update > STREAM_TIMEOUT:
+            if (
+                time.monotonic() - max(self._started_at, self.last_update)
+                > STREAM_TIMEOUT
+            ):
                 LOGGER.warning('Device-query helper stopped supplying valid updates')
                 return True
         return False

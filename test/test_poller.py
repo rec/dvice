@@ -575,3 +575,43 @@ def test_oversized_unterminated_messages_are_rejected(
         assert stream.updates.empty()
     finally:
         stream.stop()
+
+
+def test_healthy_helpers_are_replaced_without_failure_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller, 'DEVICE_REFRESH_INTERVAL', 0.1)
+    stream = DeviceQueryStream(helper_command('healthy'))
+    stream.restart_backoff = 8
+    try:
+        wait_for_update(stream)
+        process = stream.process
+        deadline = time.monotonic() + 3
+        while stream.process is process and time.monotonic() < deadline:
+            stream.devices()
+            time.sleep(0.005)
+        assert stream.process is not None and stream.process is not process
+        assert process is not None and process.poll() is not None
+        assert stream.restart_backoff == 8
+        assert stream.next_start == 0
+        assert wait_for_update(stream) == [{'name': 'Mic', 'max_input_channels': 1}]
+    finally:
+        stream.stop()
+
+
+def test_planned_refresh_does_not_erase_sustained_health(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller, 'DEVICE_REFRESH_INTERVAL', 0.1)
+    monkeypatch.setattr(poller, 'STREAM_TIMEOUT', 0.3)
+    stream = DeviceQueryStream(helper_command('healthy'))
+    stream.restart_backoff = 8
+    try:
+        wait_for_update(stream)
+        deadline = time.monotonic() + 3
+        while stream.restart_backoff != 1 and time.monotonic() < deadline:
+            stream.devices()
+            time.sleep(0.005)
+        assert stream.restart_backoff == 1
+    finally:
+        stream.stop()
