@@ -9,6 +9,7 @@ import tyro
 from pydantic import BaseModel, Field
 
 from dvice.discovery import DEVICE_QUERY_TIMEOUT, query_devices
+from dvice.health import DiscoveryHealth
 from dvice.poller import RESTART_BACKOFF_SECONDS, DeviceQueryStream
 
 
@@ -78,6 +79,7 @@ def benchmark_streams(args: Benchmark) -> dict[str, object]:
     previous: list[object] = [None] * args.pollers
     generations = [0] * args.pollers
     observations = [0] * args.pollers
+    sequences = [-1] * args.pollers
     first_updates: list[float | None] = [None] * args.pollers
     counts: set[int] = set()
     cpu_before = child_cpu_time()
@@ -86,13 +88,18 @@ def benchmark_streams(args: Benchmark) -> dict[str, object]:
     try:
         while time.monotonic() - started < args.stream_seconds:
             for i, stream in enumerate(streams):
-                devices = stream.devices()
+                stream.devices()
                 if stream.restart_backoff > RESTART_BACKOFF_SECONDS:
                     raise RuntimeError('Helper failed; not a healthy-refresh benchmark')
+                status = stream.status
+                devices = (
+                    status.devices if status.health == DiscoveryHealth.healthy else None
+                )
                 if stream.process is not None and stream.process is not previous[i]:
                     generations[i] += 1
                     previous[i] = stream.process
-                if devices is not None:
+                if devices is not None and status.sequence != sequences[i]:
+                    sequences[i] = status.sequence
                     observations[i] += 1
                     counts.add(len(devices))
                     if first_updates[i] is None:

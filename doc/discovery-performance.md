@@ -88,8 +88,9 @@ running regardless of the consumer interval.
   they do not justify trading away the agreed discovery responsiveness.
 - Prefer one discovery owner per application. Dispatch its observations to the
   application's interested components rather than starting independent pollers
-  for each component. `latest()` is consumptive, so those components must not
-  independently consume the same poller. No shared daemon, cross-process cache,
+  for each component. The new non-consuming `status` permits independent readers
+  to share one poller without consuming each other's observations. No shared
+  daemon, cross-process cache,
   new dependency, or production API is introduced.
 - Keep supervision consumer-driven and document the consequence. Choose a short
   consumer interval for responsive supervision; a five-second refresh cadence is
@@ -100,6 +101,18 @@ running regardless of the consumer interval.
 
 Finding 14 is closed for measurement tooling, local evidence, and the explicit
 cadence/ownership decisions. No production cadence or API changed.
+
+## Discovery-health regression measurement
+
+After adding cached health observations and independent status copies, a further
+single-owner run used the same four-endpoint Mac inventory and 0.1-second
+consumer interval. It read `status` on each control-loop iteration and counted
+new observations by sequence. Four generations over 16.01 seconds used 0.122 s
+of parent CPU and 0.603 s of helper CPU, totaling 4.53% of one core. First
+observation arrived in 311 ms. No cadence or helper-count change was introduced.
+The earlier 3.53% result and this short follow-up are separate local measurements,
+not a controlled attribution of the difference to the new feature. Independent
+reader copies have workload-dependent cost; this run used one reader.
 
 ## Qualification limits
 

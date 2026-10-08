@@ -23,6 +23,9 @@ def main() -> None:
         case 'once_idle':
             print('[{"name":"Mic","max_input_channels":1}]', flush=True)
             time.sleep(60)
+        case 'empty_idle':
+            print('[]', flush=True)
+            time.sleep(60)
         case 'oversized':
             sys.stdout.write('x' * (2 * 1024 * 1024))
             sys.stdout.flush()

@@ -1,5 +1,6 @@
 import pytest
 
+from dvice.health import DiscoveryHealth, DiscoveryStatus
 from scripts import discovery_benchmark
 
 
@@ -17,13 +18,20 @@ def test_streaming_measurement_counts_generations_and_parent_cpu(
             self.process = object()
             self.replaced = False
             self.stopped = False
+            self.status = DiscoveryStatus()
             streams.append(self)
 
         def devices(self) -> list[dict[str, int | str]]:
             if now >= 5 and not self.replaced:
                 self.process = object()
                 self.replaced = True
-            return [{'name': 'Mic', 'max_input_channels': 1}]
+            devices = [{'name': 'Mic', 'max_input_channels': 1}]
+            self.status = DiscoveryStatus(
+                devices=devices,
+                sequence=self.status.sequence + 1,
+                health=DiscoveryHealth.healthy,
+            )
+            return devices
 
         def stop(self) -> None:
             self.stopped = True
@@ -70,6 +78,7 @@ def test_failed_measurement_cleans_up_every_helper(
     class FakeStream:
         restart_backoff = 2 if failure == 'crash' else 1
         process = None
+        status = DiscoveryStatus()
 
         def __init__(self) -> None:
             self.stopped = False

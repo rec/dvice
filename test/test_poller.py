@@ -10,6 +10,7 @@ import pytest
 
 from dvice import poller
 from dvice.device import DeviceDict
+from dvice.health import DiscoveryFailure, DiscoveryHealth, DiscoveryStatus
 from dvice.poller import DevicePoller, DeviceQueryStream
 
 
@@ -48,6 +49,7 @@ class FakeQueryStream:
         ]
         self.started = False
         self.stopped = False
+        self.status = DiscoveryStatus()
 
     def start(self) -> None:
         self.started = True
@@ -57,7 +59,15 @@ class FakeQueryStream:
 
     def devices(self) -> list[DeviceDict] | None:
         if self.snapshots:
-            return self.snapshots.pop(0)
+            devices = self.snapshots.pop(0)
+            self.status = DiscoveryStatus(
+                devices=devices,
+                health=DiscoveryHealth.healthy,
+                observed_at=time.monotonic(),
+                generation=1,
+                sequence=self.status.sequence + 1,
+            )
+            return devices
         return None
 
 
@@ -124,8 +134,8 @@ def test_poller_keeps_only_latest_input_devices(
     device.poll()
     device.poll()
 
-    assert device.latest() == [{'max_input_channels': 2, 'name': 'Interface'}]
-    assert device.latest() is None
+    assert device.status.devices == [{'max_input_channels': 2, 'name': 'Interface'}]
+    assert device.status == device.status
 
 
 def test_poller_preserves_duplicate_endpoints_and_current_enumeration(
@@ -144,20 +154,22 @@ def test_poller_preserves_duplicate_endpoints_and_current_enumeration(
     ]
     for expected in ([first, second, first], [second, first], [renamed, second], []):
         device.poll()
-        assert device.latest() == expected
-        assert device.latest() is None
+        assert device.status.devices == expected
+        assert device.status.devices == expected
 
 
-def test_poller_ignores_malformed_snapshot(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(poller, 'DeviceQueryStream', FakeQueryStream)
-    device = DevicePoller(1)
-    device.query_stream.snapshots = [[{'name': 'Mic'}]]
-
-    device.poll()
-
-    assert device.latest() is None
+def test_poller_reports_malformed_snapshot_without_inventing_device_absence() -> None:
+    device = DevicePoller(0.01, helper_command('invalid'))
+    device.start()
+    try:
+        deadline = time.monotonic() + 3
+        while device.status.failure is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert device.status.failure == DiscoveryFailure.protocol
+        assert device.status.devices is None
+    finally:
+        device.stop()
+        device.join(3)
 
 
 def test_poller_starts_and_stops_query_stream(
@@ -399,7 +411,7 @@ def test_stop_wakes_poller_with_long_interval() -> None:
         assert not device.thread.is_alive()
         assert device.query_stream.process is None
         device.poll()
-        assert device.latest() is None
+        assert device.status.health == DiscoveryHealth.stopped
     finally:
         device.stop()
         device.join(3)
@@ -542,11 +554,16 @@ def test_stop_and_start_discard_previous_updates() -> None:
         while stream.updates.empty() and time.monotonic() < deadline:
             time.sleep(0.005)
         assert not stream.updates.empty()
+        before = stream.status
         stream.stop()
         assert stream.updates.empty()
         stream.command = helper_command('idle')
         stream.start()
         assert stream.devices() is None
+        assert stream.status.health == DiscoveryHealth.starting
+        assert stream.status.devices == before.devices
+        assert stream.status.generation == before.generation
+        assert stream.status.observed_at == before.observed_at
     finally:
         stream.stop()
 

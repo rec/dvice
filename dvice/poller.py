@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
+from copy import deepcopy
 from queue import Empty, Queue
 from typing import IO
 
@@ -14,6 +15,7 @@ from threa import HasThread
 
 from .device import DeviceDict
 from .discovery import DEVICE_QUERY_TIMEOUT, MAX_SNAPSHOT_BYTES, _validate_devices
+from .health import DiscoveryFailure, DiscoveryHealth, DiscoveryStatus
 
 STREAM_TIMEOUT = DEVICE_QUERY_TIMEOUT
 DEVICE_REFRESH_INTERVAL = 5.0
@@ -23,12 +25,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class DevicePoller(HasThread):
-    """Single-use polling thread; latest() consumes pending input-device data."""
+    """Single-use supervisor; status reads never consume input-device observations."""
 
     def __init__(self, interval: float, command: Sequence[str] | None = None) -> None:
         if not math.isfinite(interval) or interval <= 0:
             raise ValueError('interval must be finite and positive')
-        self.snapshots: Queue[list[DeviceDict]] = Queue(maxsize=1)
         self.query_stream = DeviceQueryStream(command)
         self._interval = interval
         self._stop_requested = threading.Event()
@@ -51,7 +52,6 @@ class DevicePoller(HasThread):
         super().stop()
         with self._poll_lock:
             self.query_stream.stop()
-            _take_latest(self.snapshots)
 
     def join(self, timeout: float | None = None) -> None:
         """Wait only for the polling thread; call stop() before joining."""
@@ -61,19 +61,16 @@ class DevicePoller(HasThread):
         with self._poll_lock:
             if self._stop_requested.is_set():
                 return
-            if (devices := self.query_stream.devices()) is None:
-                return
-            try:
-                devices = _validate_devices(devices)
-            except ValueError as error:
-                LOGGER.warning('Ignoring device-query snapshot: %s', error)
-                return
-            snapshot = [i for i in devices if i['max_input_channels']]
-            _put_latest(self.snapshots, snapshot)
+            self.query_stream.devices()
 
-    def latest(self) -> list[DeviceDict] | None:
-        with self._poll_lock:
-            return _take_latest(self.snapshots)
+    @property
+    def status(self) -> DiscoveryStatus:
+        status = self.query_stream.status
+        if status.devices is None:
+            return status
+        return status.model_copy(
+            update={'devices': [i for i in status.devices if i['max_input_channels']]}
+        )
 
     def _poll_and_wait(self) -> None:
         if self._stop_requested.is_set():
@@ -105,13 +102,32 @@ class DeviceQueryStream:
         self._stopped = False
         self._healthy_since: float | None = None
         self._started_at = 0.0
+        self._generation = 0
+        self._status_lock = threading.Lock()
+        self._status = DiscoveryStatus()
+
+    @property
+    def status(self) -> DiscoveryStatus:
+        with self._status_lock:
+            status = self._status
+        return status.model_copy(deep=True)
 
     def start(self) -> None:
         """Enable queries and start a helper if its backoff has elapsed."""
         with self._lock:
             self._stopped = False
-            if self.process is not None or time.monotonic() < self.next_start:
+            if self.process is not None:
+                with self._status_lock:
+                    stopped = self._status.health == DiscoveryHealth.stopped
+                if stopped:
+                    self._publish(health=DiscoveryHealth.retrying)
                 return
+            if time.monotonic() < self.next_start:
+                self._publish(
+                    health=DiscoveryHealth.retrying, next_retry=self.next_start
+                )
+                return
+            self._publish(health=DiscoveryHealth.starting, next_retry=None)
             try:
                 process = subprocess.Popen(
                     self.command,
@@ -123,13 +139,14 @@ class DeviceQueryStream:
                 )
             except OSError as error:
                 LOGGER.warning('Cannot start device-query helper: %s', error)
-                self._backoff()
+                self._backoff(DiscoveryFailure.spawn)
                 return
             self.process = process
             with self._updates_lock:
                 _take_latest(self.updates)
                 self._started_at = time.monotonic()
                 self._reader_stop = threading.Event()
+                self._generation += 1
             try:
                 self.reader = threading.Thread(
                     target=self._read,
@@ -140,7 +157,7 @@ class DeviceQueryStream:
                 self.reader.start()
             except (RuntimeError, MemoryError):
                 self._close()
-                self._backoff()
+                self._backoff(DiscoveryFailure.reader)
                 raise
 
     def stop(self) -> None:
@@ -181,13 +198,25 @@ class DeviceQueryStream:
             if self._stopped:
                 return
             self._close()
-            self._backoff()
+            with self._status_lock:
+                failure = self._status.failure
+            self._backoff(failure)
 
     def _close(self, *, refreshing: bool = False) -> None:
         deadline = time.monotonic() + STREAM_TIMEOUT
         with self._updates_lock:
             self._reader_stop.set()
             _take_latest(self.updates)
+            self._publish(
+                health=DiscoveryHealth.stopped
+                if self._stopped
+                else (
+                    DiscoveryHealth.refreshing
+                    if refreshing
+                    else DiscoveryHealth.retrying
+                ),
+                next_retry=None,
+            )
             if not refreshing:
                 self._healthy_since = None
         if (process := self.process) is None:
@@ -211,22 +240,50 @@ class DeviceQueryStream:
         self.last_exitcode = process.poll()
         if self.last_exitcode is None or (reader is not None and reader.is_alive()):
             LOGGER.error('Retaining device-query helper until cleanup completes')
+            self._publish(
+                health=DiscoveryHealth.stopped
+                if self._stopped
+                else DiscoveryHealth.retrying,
+                failure=DiscoveryFailure.cleanup,
+                next_retry=None,
+            )
             return
         self.process = None
         self.reader = None
 
-    def _backoff(self) -> None:
+    def _backoff(self, failure: DiscoveryFailure | None = None) -> None:
         self.next_start = time.monotonic() + self.restart_backoff
         self.restart_backoff = min(
             MAX_RESTART_BACKOFF_SECONDS, 2 * self.restart_backoff
         )
+        with self._status_lock:
+            previous_failure = self._status.failure
+        self._publish(
+            health=DiscoveryHealth.retrying,
+            failure=DiscoveryFailure.cleanup
+            if previous_failure == DiscoveryFailure.cleanup
+            else failure,
+            next_retry=self.next_start if self.process is None else None,
+        )
 
     def _needs_restart(self) -> bool:
         if self.process is None or self.process.poll() is not None:
+            self._publish(
+                health=DiscoveryHealth.retrying, failure=DiscoveryFailure.exited
+            )
             LOGGER.warning(
                 'Device-query helper exited: %s',
                 self.process.poll() if self.process is not None else self.last_exitcode,
             )
+            return True
+        with self._status_lock:
+            failure = self._status.failure
+            health = self._status.health
+        if health == DiscoveryHealth.retrying and failure in (
+            DiscoveryFailure.protocol,
+            DiscoveryFailure.reader,
+            DiscoveryFailure.exited,
+        ):
             return True
         with self._updates_lock:
             if (
@@ -234,6 +291,9 @@ class DeviceQueryStream:
                 > STREAM_TIMEOUT
             ):
                 LOGGER.warning('Device-query helper stopped supplying valid updates')
+                self._publish(
+                    health=DiscoveryHealth.retrying, failure=DiscoveryFailure.stalled
+                )
                 return True
         return False
 
@@ -251,6 +311,12 @@ class DeviceQueryStream:
                     stop.wait(0.01)
                     continue
                 if not chunk:
+                    with self._updates_lock:
+                        if not stop.is_set():
+                            self._publish(
+                                health=DiscoveryHealth.retrying,
+                                failure=DiscoveryFailure.exited,
+                            )
                     return
                 pending.extend(chunk)
                 while (end := pending.find(b'\n')) >= 0:
@@ -268,13 +334,38 @@ class DeviceQueryStream:
                         ):
                             self._healthy_since = now
                         self.last_update = now
+                        self._publish(
+                            devices=deepcopy(devices),
+                            observed_at=now,
+                            generation=self._generation,
+                            health=DiscoveryHealth.healthy,
+                            failure=None,
+                            next_retry=None,
+                        )
                         _put_latest(self.updates, devices)
                 if len(pending) > MAX_SNAPSHOT_BYTES:
                     raise ValueError('Device-query snapshot exceeds byte limit')
         except (OSError, ValueError) as error:
             LOGGER.warning('Device-query reader failed: %s', error)
+            with self._updates_lock:
+                if not stop.is_set():
+                    self._publish(
+                        health=DiscoveryHealth.retrying,
+                        failure=DiscoveryFailure.reader
+                        if isinstance(error, OSError)
+                        else DiscoveryFailure.protocol,
+                    )
         finally:
             stream.close()
+
+    def _publish(self, **changes: object) -> None:
+        with self._status_lock:
+            if 'observed_at' in changes or any(
+                getattr(self._status, k) != v for k, v in changes.items()
+            ):
+                self._status = self._status.model_copy(
+                    update={**changes, 'sequence': self._status.sequence + 1}
+                )
 
 
 def _put_latest[T](queue: Queue[T], value: T) -> None:

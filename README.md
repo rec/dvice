@@ -30,9 +30,41 @@ have been filtered out. dvice does not invent missing endpoint identifiers.
 dvice does not match, merge, or deduplicate endpoints across refreshes; renaming
 and reordering appear as the backend reports them. Consumers must define their
 own matching policy and must not assume display names are unique.
-`latest()` consumes the pending
-snapshot: `None` means no new observation, and `[]` means successful enumeration
-found no inputs. Snapshots are latest-only, not a journal of every unplug/replug.
+Read `poller.status` for a non-consuming `DiscoveryStatus`. Its `devices` is
+`None` before the first successful observation and `[]` after a successful
+enumeration with no inputs. Every reader gets an independent copy; modifying a
+returned list or description cannot change another reader's observation.
+Observations are latest-only, not a journal of every unplug/replug.
+
+`DiscoveryStatus`, `DiscoveryHealth`, and `DiscoveryFailure` are defined in
+`dvice.health`. Status contains:
+
+- `sequence`: increases on each accepted observation or status transition. Reads
+  do not advance it. Track this per reader to avoid processing the same state twice.
+- `observed_at`: host-monotonic receipt time of the last successful observation,
+  or `None`. It is not the time of a physical device change or PortAudio refresh.
+- `generation`: helper generation that produced the cached devices, initially
+  zero. During restart it still identifies the old observation, not the new helper.
+- `health`: `idle`, `starting`, `healthy`, `refreshing`, `retrying`, or `stopped`.
+  Cached devices are current only while health is `healthy`.
+- `failure`: `spawn`, `exited`, `stalled`, `protocol`, `reader`, or `cleanup`,
+  or `None`. Detailed errors remain in logs.
+- `next_retry`: host-monotonic scheduled retry time, or `None` when no retry is
+  scheduled, including when cleanup has not completed.
+
+Failures, refreshes, and stop retain the last successful devices and their receipt
+time, marked non-current by health. Never treat that cached list as a new removal
+observation. `stopped` means stop was requested; a `cleanup` failure means resource
+cleanup still needs retrying. Successful observations clear prior failures.
+Status reads perform no process creation, lifecycle waits, or supervision work,
+and do not acquire lifecycle locks. The polling thread advances supervision;
+manual `DeviceQueryStream` users must still call `devices()` regularly. Health is
+the supervisor's last assessment, not an independent watchdog or proof that an
+audio stream is delivering samples. Use receipt age when assessing freshness.
+
+The former consumptive `DevicePoller.latest()` is replaced by `status`; there is
+no compatibility delivery path. For standalone `DeviceQueryStream`, `status`
+contains all endpoints rather than the poller's input-only view.
 
 Use a finite positive polling `interval` (seconds). It is the delay between
 consumer polls, not the helper's enumeration rate. A poller is single-use:

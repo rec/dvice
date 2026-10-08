@@ -1,6 +1,7 @@
 # Useful additions to dvice
 
-Status: proposed, not implemented. Written 8 October 2026 against `d97f173`.
+Status: feature 1 implemented; features 2 to 5 proposed, not implemented.
+Initially written 8 October 2026 against `d97f173`.
 This is a shortlist for implementation decisions, not authorization to change
 the public API. Keep dvice focused on discovering audio endpoints and supervising
 unreliable native operations. Applications still own what their devices do.
@@ -9,46 +10,20 @@ unreliable native operations. Applications still own what their devices do.
 
 | Order | Feature | Immediate consumer benefit |
 | --- | --- | --- |
-| 1 | Readable discovery health and current observation | Distinguish absent devices from unavailable discovery; share one discovery owner |
 | 2 | Output and duplex discovery with useful backend information | Use the same supervision for playback endpoints and explain duplicate names |
 | 3 | Ambiguity-aware selection and snapshot differences | Avoid selecting the wrong endpoint; handle observed arrivals and removals consistently |
 | 4 | Explicit fresh-discovery requests | Respond to a user's Refresh or Retry action without manipulating helper internals |
 | 5 | Bounded waits for initial discovery or a selected device | Start services and interactive applications without ad hoc sleep loops |
 
-Start with feature 1. Implement the others in small, separately reviewed slices.
+Feature 1 is the completed foundation. Implement the others in small, separately reviewed slices.
 Each slice should have a concrete consumer integration before the next begins.
 
-## 1. Readable discovery health and current observation
+## 1. Completed foundation: discovery health
 
-**Current gap:** `latest()` consumes an observation. `None` cannot tell an
-application whether nothing changed, discovery is starting, or a helper failed.
-Useful helper state exists, but consumers must inspect lifecycle internals and
-interpret logs. Multiple readers can also accidentally steal each other's data.
-
-**Plan:** provide one canonical, non-consuming observation/status contract on
-the thread-owning poller. Include the last successful endpoint list, a sequence
-number, host-monotonic receipt time, helper generation, and discovery health.
-Expose a concise failure category and next retry time when applicable. Status
-reads must not launch processes, wait for cleanup, or require a new helper.
-
-Keep a never-observed result distinct from a successful empty list. Retain the
-last successful observation through failures, clearly marked as no longer current.
-Stop must be distinguishable from retrying. Callers track the sequence themselves;
-no per-reader queues, subscription registry, or unbounded history is needed.
-Returned descriptions must not let one reader mutate another reader's view.
-
-Receipt time means the host received a valid observation, not that hardware was
-just refreshed. A helper generation identifies an enumeration process, not a
-physical device reboot. Discovery health does not establish audio-stream health.
-
-**Acceptance:** independent readers see the same observation; failures never
-become empty inventories; old generations are rejected; status reads remain
-prompt during helper replacement and shutdown. Use deterministic unit tests and
-audio-free helper fixtures, not claims about physical hardware from mocks.
-
-**API decision before implementation:** agree on the observation model and the
-replacement for consumptive `latest()`, then update consumers together. Do not
-silently change its meaning or maintain parallel legacy delivery paths.
+`DevicePoller.status` now returns the non-consuming observation and discovery
+health contract. See [README](../README.md#polling-and-lifecycle) for fields,
+failure semantics, independent-reader behavior, and lifecycle limits. Future
+features should build on this contract, not add a second observation API.
 
 ## 2. Output and duplex discovery with useful backend information
 
