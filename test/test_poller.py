@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from reccy.device import DeviceDict
 
 from dvice import poller
+from dvice.device import DeviceDict
 from dvice.poller import DevicePoller, DeviceQueryStream
 
 

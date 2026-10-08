@@ -36,7 +36,7 @@ occur with identical interfaces or the same hardware exposed by different host
 APIs. Reordering enumeration can change which device survives. Renaming a
 device looks like removal plus arrival, not an identity-preserving update.
 
-reccy's `device_key()` explicitly notes that its name fallback is not unique;
+dvice's `device_key()` explicitly notes that its name fallback is not unique;
 using that fallback alone would not solve this problem. PortAudio indices are
 also enumeration-specific, not persistent hardware identities.
 
@@ -71,19 +71,16 @@ that graceful cleanup or process isolation provides crash supervision.
 
 ## P2/P3: public API clarity and project boundaries
 
-### 22. Packaging and dependency ownership limit reuse and reproducibility
+### 22. Release policy and inherited dependency behavior remain unpinned
 
-**Deferred by user agreement: dependency policy unchanged.** dvice depends on reccy mainly for `DeviceDict`, tying
-a small device utility to a broader shared package and its Git source on moving
-`main`. The checked-in lockfile pins this checkout's resolution, but downstream
+**Deferred by user agreement: release policy unchanged.** Device descriptions
+and identity helpers are now owned by dvice. The checked-in lockfile pins this checkout's resolution, but downstream
 applications resolving their own environments need not use that lockfile.
 Unbounded future threa versions can also change inherited lifecycle behavior.
 
-**Recommendation:** document supported dependency behavior and the intended
-descriptor owner. Consider release/pin policy when publishing for independent
-consumers. Do not introduce a duplicate type or dependency migration without an
-ownership decision. Source URLs are already consistently HTTPS here; the earlier
-SSH/HTTPS conflict is not an outstanding issue in this checkout.
+**Recommendation:** consider release/pin policy when publishing for independent
+consumers. Moving descriptor ownership does not settle version policy or guarantee
+unchanging inherited thread behavior.
 
 ## Testing and structure
 

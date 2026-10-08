@@ -86,9 +86,11 @@ finally:
     stream.stop()
 ```
 
-Dependency ownership and version policy are unchanged: descriptors come from
-reccy, its source follows `main`, and threa supplies the inherited thread API.
-This checkout's lockfile is not a downstream application's dependency pin.
+`DeviceDict`, `device_key()`, and `STABLE_DEVICE_ID_FIELDS` are defined in
+`dvice.device`. The key helper prefers a supplied persistent ID but falls back to
+a display name, which is not guaranteed unique. threa supplies the inherited
+thread API. Release/version policy is unchanged; this checkout's lockfile is not
+a downstream application's dependency pin.
 
 `join_process()` in `dvice.supervision` accepts a started, unclosed multiprocessing
 process and finite non-negative timeouts. Its nominal wait budget is

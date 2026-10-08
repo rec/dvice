@@ -10,9 +10,9 @@ from collections.abc import Sequence
 from queue import Empty, Queue
 from typing import IO
 
-from reccy.device import DeviceDict
 from threa import HasThread
 
+from .device import DeviceDict
 from .discovery import DEVICE_QUERY_TIMEOUT, MAX_SNAPSHOT_BYTES, _validate_devices
 
 STREAM_TIMEOUT = DEVICE_QUERY_TIMEOUT

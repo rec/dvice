@@ -8,7 +8,7 @@ import time
 from collections.abc import Sequence
 from typing import cast
 
-from reccy.device import DeviceDict
+from .device import DeviceDict
 
 STREAM_INTERVAL = 0.1
 DEVICE_QUERY_TIMEOUT = 5.0
