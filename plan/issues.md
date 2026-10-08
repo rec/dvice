@@ -22,28 +22,7 @@ No audio application or hardware experiment was run.
 - **P3**: smaller naming, documentation, and maintainability concerns.
 
 No P0 is established. Do not interpret a possible issue as proven on every OS.
-Further API changes require a user decision. Duplicate-name changes are deferred
-by user agreement while the name-keyed result contract is preserved.
-
-## P1: discovery and lifecycle
-
-### 5. Name-keyed snapshots silently discard distinct devices
-
-**Deferred by user agreement: result-contract change.** `DevicePoller.poll()`
-uses `info['name']` as the sole dictionary key.
-Two devices with the same display name collapse to the last entry. This can
-occur with identical interfaces or the same hardware exposed by different host
-APIs. Reordering enumeration can change which device survives. Renaming a
-device looks like removal plus arrival, not an identity-preserving update.
-
-dvice's `device_key()` explicitly notes that its name fallback is not unique;
-using that fallback alone would not solve this problem. PortAudio indices are
-also enumeration-specific, not persistent hardware identities.
-
-**Recommendation:** preserve every enumerated endpoint and explicitly define
-identity, host API, and cross-refresh matching semantics. Do not promise stable
-identity where the backend lacks it. Test duplicate names, host-API duplicates,
-reordered lists, and renamed devices before selecting an API shape.
+Further API changes require a user decision.
 
 ## P2: watchdog, exceptional conditions, and resources
 

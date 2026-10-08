@@ -120,10 +120,28 @@ def test_poller_keeps_only_latest_input_devices(
     device.poll()
     device.poll()
 
-    assert device.latest() == {
-        'Interface': {'max_input_channels': 2, 'name': 'Interface'}
-    }
+    assert device.latest() == [{'max_input_channels': 2, 'name': 'Interface'}]
     assert device.latest() is None
+
+
+def test_poller_preserves_duplicate_endpoints_and_current_enumeration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller, 'DeviceQueryStream', FakeQueryStream)
+    device = DevicePoller(1)
+    first: DeviceDict = {'name': 'Mic', 'max_input_channels': 1, 'hostapi': 0}
+    second: DeviceDict = {'name': 'Mic', 'max_input_channels': 2, 'hostapi': 1}
+    renamed: DeviceDict = {**first, 'name': 'New mic'}
+    device.query_stream.snapshots = [
+        [first, second, dict(first)],
+        [second, first],
+        [renamed, second],
+        [],
+    ]
+    for expected in ([first, second, first], [second, first], [renamed, second], []):
+        device.poll()
+        assert device.latest() == expected
+        assert device.latest() is None
 
 
 def test_poller_ignores_malformed_snapshot(

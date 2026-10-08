@@ -28,7 +28,7 @@ class DevicePoller(HasThread):
     def __init__(self, interval: float, command: Sequence[str] | None = None) -> None:
         if not math.isfinite(interval) or interval <= 0:
             raise ValueError('interval must be finite and positive')
-        self.snapshots: Queue[dict[str, DeviceDict]] = Queue(maxsize=1)
+        self.snapshots: Queue[list[DeviceDict]] = Queue(maxsize=1)
         self.query_stream = DeviceQueryStream(command)
         self._interval = interval
         self._stop_requested = threading.Event()
@@ -68,10 +68,10 @@ class DevicePoller(HasThread):
             except ValueError as error:
                 LOGGER.warning('Ignoring device-query snapshot: %s', error)
                 return
-            snapshot = {str(i['name']): i for i in devices if i['max_input_channels']}
+            snapshot = [i for i in devices if i['max_input_channels']]
             _put_latest(self.snapshots, snapshot)
 
-    def latest(self) -> dict[str, DeviceDict] | None:
+    def latest(self) -> list[DeviceDict] | None:
         with self._poll_lock:
             return _take_latest(self.snapshots)
 

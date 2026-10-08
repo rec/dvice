@@ -21,9 +21,15 @@ the exception, subject to the OS being able to terminate it.
 ## Polling and lifecycle
 
 Import `DevicePoller` from `dvice.poller`. It publishes only input-capable
-devices, keyed by display name. Duplicate names currently collide; do not use
-these keys as guaranteed hardware identities. `latest()` consumes the pending
-snapshot: `None` means no new observation, and `{}` means successful enumeration
+devices, as a list in enumeration order. Every endpoint is preserved, including
+duplicate names and endpoints exposed by different host APIs. Descriptions retain
+the backend's host API and any supplied identity fields. List positions and
+PortAudio indices identify only the current enumeration, not persistent hardware.
+dvice does not match, merge, or deduplicate endpoints across refreshes; renaming
+and reordering appear as the backend reports them. Consumers must define their
+own matching policy and must not assume display names are unique.
+`latest()` consumes the pending
+snapshot: `None` means no new observation, and `[]` means successful enumeration
 found no inputs. Snapshots are latest-only, not a journal of every unplug/replug.
 
 Use a finite positive polling `interval` (seconds). It is the delay between
