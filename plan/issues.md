@@ -79,21 +79,6 @@ the current fake always becomes dead immediately when killed.
 
 ## P2: watchdog, exceptional conditions, and resources
 
-### 13. One-shot query output remains unbounded
-
-**Confirmed lack of limit; impact depends on helper output.** `query_devices()`
-buffers all stdout. Streaming messages now have a 1 MiB limit, but the one-shot
-path has no byte limit.
-A custom/broken helper can emit an enormous line or endless data without a
-newline. Queue capacity bounds message count, not bytes, and does not prevent
-parent memory exhaustion. JSON decoding and enumeration-to-dictionary conversion
-can also consume excessive CPU for large messages.
-
-**Recommendation:** define a reasonable protocol byte/device bound for helper
-output and a failure policy. Do not catch MemoryError and claim reliable recovery
-without accounting for remaining resources. Normal device enumeration is small;
-this is a robustness concern, not evidence of an ordinary memory leak.
-
 ### 14. Enumeration cost and slow-consumer recovery latency need qualification
 
 **Confirmed tradeoff.** Finite positive polling intervals are now enforced and

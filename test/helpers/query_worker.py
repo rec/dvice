@@ -6,6 +6,10 @@ import time
 
 def main() -> None:
     match sys.argv[1]:
+        case 'output':
+            print(sys.argv[2], flush=True)
+        case 'fail':
+            sys.exit('query fixture failed')
         case 'invalid':
             while True:
                 print('{"error": "not a device list"}', flush=True)

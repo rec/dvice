@@ -1,6 +1,7 @@
 """Isolated PortAudio device discovery for long-running applications."""
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -11,20 +12,52 @@ from reccy.device import DeviceDict
 
 STREAM_INTERVAL = 0.1
 DEVICE_QUERY_TIMEOUT = 5.0
+MAX_SNAPSHOT_BYTES = 1024 * 1024
 
 
 def query_devices(command: Sequence[str] | None = None) -> list[DeviceDict]:
     """Query in isolation; failures raise rather than implying device absence."""
     command = command or [sys.executable, '-m', 'dvice.worker']
-    result = subprocess.run(
+    process = subprocess.Popen(
         command,
         text=True,
-        check=True,
         start_new_session=True,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
-        timeout=DEVICE_QUERY_TIMEOUT,
     )
-    return _validate_devices(json.loads(result.stdout))
+    output = bytearray()
+    deadline = time.monotonic() + DEVICE_QUERY_TIMEOUT
+    try:
+        assert process.stdout is not None
+        descriptor = process.stdout.fileno()
+        os.set_blocking(descriptor, False)
+        while True:
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(
+                    command, DEVICE_QUERY_TIMEOUT, bytes(output)
+                )
+            try:
+                chunk = os.read(descriptor, 65536)
+            except BlockingIOError:
+                time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
+                continue
+            if not chunk:
+                break
+            output.extend(chunk)
+            if len(output) > MAX_SNAPSHOT_BYTES:
+                raise ValueError('Device-query snapshot exceeds byte limit')
+        returncode = process.wait(max(0.0, deadline - time.monotonic()))
+        if returncode:
+            raise subprocess.CalledProcessError(returncode, command, output.decode())
+        return _validate_devices(json.loads(output))
+    finally:
+        try:
+            if process.poll() is None:
+                process.kill()
+                process.wait(DEVICE_QUERY_TIMEOUT)
+        finally:
+            if process.stdout is not None:
+                process.stdout.close()
 
 
 def devices_json() -> str:

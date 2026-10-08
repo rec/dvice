@@ -13,12 +13,11 @@ from typing import IO
 from reccy.device import DeviceDict
 from threa import HasThread
 
-from .discovery import DEVICE_QUERY_TIMEOUT, _validate_devices
+from .discovery import DEVICE_QUERY_TIMEOUT, MAX_SNAPSHOT_BYTES, _validate_devices
 
 STREAM_TIMEOUT = DEVICE_QUERY_TIMEOUT
 RESTART_BACKOFF_SECONDS = 1.0
 MAX_RESTART_BACKOFF_SECONDS = 30.0
-MAX_SNAPSHOT_BYTES = 1024 * 1024
 LOGGER = logging.getLogger(__name__)
 
 

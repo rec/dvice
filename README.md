@@ -13,6 +13,10 @@ media. Its first consumer is recs.
 list when no devices exist. Spawn, backend, timeout, and protocol failures raise
 exceptions instead of implying device removal. The streaming poller discards
 malformed observations without treating them as healthy updates.
+Both query paths reject output exceeding 1 MiB. One-shot output collection is
+nonblocking and deadline-limited, including a helper that leaves its stdout pipe
+open. Timeouts and interrupts kill and reap the direct child before propagating
+the exception, subject to the OS being able to terminate it.
 
 ## Polling and lifecycle
 
