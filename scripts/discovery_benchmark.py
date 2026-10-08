@@ -8,12 +8,16 @@ import time
 import tyro
 from pydantic import BaseModel, Field
 
-from dvice.discovery import query_devices
+from dvice.discovery import DEVICE_QUERY_TIMEOUT, query_devices
+from dvice.poller import RESTART_BACKOFF_SECONDS, DeviceQueryStream
 
 
 class Benchmark(BaseModel, frozen=True):
     warm_queries: int = Field(default=100, ge=1)
     fresh_queries: int = Field(default=10, ge=1)
+    stream_seconds: float = Field(default=16.0, gt=0, allow_inf_nan=False)
+    pollers: int = Field(default=1, ge=1)
+    consumer_interval: float = Field(default=0.1, gt=0, allow_inf_nan=False)
 
 
 def main() -> None:
@@ -45,6 +49,7 @@ def main() -> None:
         if cpu_before is not None and cpu_after is not None
         else None
     )
+    streaming = benchmark_streams(args)
     print(
         json.dumps(
             {
@@ -61,10 +66,77 @@ def main() -> None:
                 'fresh_wall_median_seconds': statistics.median(fresh),
                 'fresh_wall_max_seconds': max(fresh),
                 'fresh_cpu_mean_seconds': fresh_cpu,
+                'streaming': streaming,
             },
             indent=2,
         )
     )
+
+
+def benchmark_streams(args: Benchmark) -> dict[str, object]:
+    streams = [DeviceQueryStream() for _ in range(args.pollers)]
+    previous: list[object] = [None] * args.pollers
+    generations = [0] * args.pollers
+    observations = [0] * args.pollers
+    first_updates: list[float | None] = [None] * args.pollers
+    counts: set[int] = set()
+    cpu_before = child_cpu_time()
+    parent_cpu_before = time.process_time()
+    started = time.monotonic()
+    try:
+        while time.monotonic() - started < args.stream_seconds:
+            for i, stream in enumerate(streams):
+                devices = stream.devices()
+                if stream.restart_backoff > RESTART_BACKOFF_SECONDS:
+                    raise RuntimeError('Helper failed; not a healthy-refresh benchmark')
+                if stream.process is not None and stream.process is not previous[i]:
+                    generations[i] += 1
+                    previous[i] = stream.process
+                if devices is not None:
+                    observations[i] += 1
+                    counts.add(len(devices))
+                    if first_updates[i] is None:
+                        first_updates[i] = time.monotonic() - started
+            if (
+                time.monotonic() - started > DEVICE_QUERY_TIMEOUT
+                and None in first_updates
+            ):
+                raise TimeoutError('A streaming helper supplied no valid observations')
+            time.sleep(
+                min(
+                    args.consumer_interval,
+                    max(0.0, args.stream_seconds - (time.monotonic() - started)),
+                )
+            )
+        if None in first_updates:
+            raise TimeoutError('A streaming helper supplied no valid observations')
+    finally:
+        for stream in streams:
+            stream.stop()
+    elapsed = time.monotonic() - started
+    parent_cpu = time.process_time() - parent_cpu_before
+    cpu_after = child_cpu_time()
+    helper_cpu = (
+        cpu_after - cpu_before
+        if cpu_before is not None and cpu_after is not None
+        else None
+    )
+    return {
+        'pollers': args.pollers,
+        'consumer_interval_seconds': args.consumer_interval,
+        'elapsed_seconds_including_cleanup': elapsed,
+        'endpoint_counts': sorted(counts),
+        'helper_generations_per_poller': generations,
+        'observations_per_poller': observations,
+        'first_observation_seconds_per_poller': first_updates,
+        'parent_cpu_seconds': parent_cpu,
+        'helper_cpu_seconds': helper_cpu,
+        'total_cpu_percent_of_one_core': (
+            100 * (parent_cpu + helper_cpu) / elapsed
+            if helper_cpu is not None
+            else None
+        ),
+    }
 
 
 def child_cpu_time() -> float | None:

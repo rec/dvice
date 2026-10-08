@@ -10,9 +10,26 @@ run makes 100 cached queries (including JSON serialization) and 10 fresh isolate
 queries. It prints endpoint counts, not device names. Fresh-query latency includes
 Python and CLI imports, PortAudio initialization, enumeration, protocol transfer,
 and verified helper exit. The initial import is measured separately in the host.
-Fresh-helper CPU is reported on platforms with the standard-library `resource`
-module; elsewhere that metric is null. Warm queries are back-to-back, so this
-does not measure a sustained polling workload, device churn, or recovery latency.
+The default run also supervises one real streaming helper for 16 seconds at a
+0.1-second consumer interval, including repeated healthy-helper replacement.
+Streaming output records helper generations, consumed observations, time to first
+observation, parent CPU (including reader threads), helper CPU, and combined CPU
+as a percentage of one core. Its elapsed time includes startup and final cleanup.
+Reaped helper CPU is collected only after all helpers are stopped, so it includes
+the complete lifetime of each generation. Failed helpers or a run with no valid
+observation abort rather than producing a healthy-refresh baseline.
+
+Run `uv run --frozen python scripts/discovery_benchmark.py --pollers 4` to measure
+four concurrent discovery owners. Run with `--consumer-interval 2 --fresh-queries 1`
+to demonstrate slower consumer supervision. Use `--stream-seconds` for longer
+runs. Keep at least 16 seconds when evaluating refresh cost; shorter measurements
+can contain fewer generations or no completed refresh at all.
+
+Fresh/streaming helper CPU is reported on platforms with the standard-library
+`resource` module; elsewhere those metrics and the combined CPU percentage are
+null, not zero. Parent CPU remains available. Counts include all enumerated
+endpoints, not just inputs. Warm queries are back-to-back; they do not measure
+device churn or hot-plug recovery latency.
 
 ## Local results
 
@@ -45,9 +62,52 @@ latency). It is not included in the four-endpoint figures above. No hardware or
 audio-service reset was performed, and the reason for that inventory change was
 not established. These runs cannot prove physical device availability or recovery.
 
-## Remaining qualification
+## Direct streaming results
 
-Windows and Linux backends, larger device inventories, multiple concurrent
-pollers, and physical hot-plug/audio-service recovery remain unqualified. Repeat
-the benchmark on those systems before treating this local result as a universal
-cost bound. Native-backend stalls remain covered by supervision, not this benchmark.
+Further measurements on the same Mac reported four endpoints throughout each
+run. Native enumeration was used; no streams were opened. All helpers remained
+healthy. These are short local runs, not sustained worst-case bounds.
+
+| Discovery owners | Consumer interval | Duration | Generations per owner | Parent CPU | Helper CPU | Total share of one core |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.1 s | 16.04 s | 4 | 0.068 s | 0.499 s | 3.53% |
+| 4 | 0.1 s | 16.01 s | 4 each | 0.206 s | 2.125 s | 14.57% |
+| 1 | 2 s | 16.01 s | 3 | 0.056 s | 0.371 s | 2.67% |
+
+The fast-consumer single-owner run delivered its first observation in 207 ms.
+The four-owner run delivered first observations in 314 to 419 ms. With a
+two-second consumer interval, the first observation took 2.00 seconds and fewer
+refreshes completed. That lower CPU percentage is **not** a free optimization:
+the consumer delays both refresh and fault supervision. Reader threads continue
+running regardless of the consumer interval.
+
+## Decisions closing review finding 14
+
+- Retain the 0.1-second worker enumeration and five-second healthy refresh.
+  Direct streaming measurements support the earlier approximate CPU estimate;
+  they do not justify trading away the agreed discovery responsiveness.
+- Prefer one discovery owner per application. Dispatch its observations to the
+  application's interested components rather than starting independent pollers
+  for each component. `latest()` is consumptive, so those components must not
+  independently consume the same poller. No shared daemon, cross-process cache,
+  new dependency, or production API is introduced.
+- Keep supervision consumer-driven and document the consequence. Choose a short
+  consumer interval for responsive supervision; a five-second refresh cadence is
+  not an independent watchdog or a hard five-second detection deadline.
+- Treat backend and inventory qualification as deployment evidence, not an
+  indefinitely open software defect. The benchmark is reproducible; these local
+  figures must not become universal cost or recovery promises.
+
+Finding 14 is closed for measurement tooling, local evidence, and the explicit
+cadence/ownership decisions. No production cadence or API changed.
+
+## Qualification limits
+
+Windows and Linux backends, larger device inventories, and physical hot-plug or
+audio-service recovery were not exercised. Concurrent owners were measured only
+on macOS with four endpoints. On Windows, helper CPU needs an OS profiler because
+the standard library does not provide the child-CPU accounting used here. Repeat
+these workloads on target machines before committing to a platform-specific
+performance budget. Native-backend stalls remain covered by supervision, not
+this performance benchmark. No synthetic inventory would establish the cost of
+real native enumeration with that many devices.

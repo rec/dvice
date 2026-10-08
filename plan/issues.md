@@ -24,23 +24,6 @@ No audio application or hardware experiment was run.
 No P0 is established. Do not interpret a possible issue as proven on every OS.
 Further API changes require a user decision.
 
-## P2: watchdog, exceptional conditions, and resources
-
-### 14. Cross-platform enumeration cost still needs qualification
-
-**Confirmed tradeoff.** Finite positive polling intervals are now enforced and
-waits are interruptible. Very large consumer intervals still postpone supervision;
-this is documented rather than pretending a consumer delay is a watchdog deadline.
-The worker enumerates every 0.1 seconds independently of the consumer interval.
-Slowing the consumer does not reduce
-native enumeration/JSON work. Multiple pollers each create their own helper.
-
-**Partially qualified:** discovery-only measurements on macOS with four endpoints
-are recorded in `doc/discovery-performance.md`, with a reproducible benchmark.
-Cached enumeration is cheap there; fresh-helper startup dominates. Windows,
-Linux, larger inventories, and concurrent pollers remain unqualified. The cadence
-is unchanged; do not presume 10 Hz is cheap on every machine.
-
 ## P2/P3: public API clarity and project boundaries
 
 ### 22. Release policy and inherited dependency behavior remain unpinned

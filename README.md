@@ -53,8 +53,12 @@ Discovery latency includes helper startup and the consumer polling interval;
 five seconds is a refresh cadence, not a sample-exact detection deadline.
 
 Discovery cost measurements and a repeatable, discovery-only benchmark are in
-[discovery-performance.md](doc/discovery-performance.md). The local macOS results
-do not establish cost or recovery bounds for other backends.
+[discovery-performance.md](doc/discovery-performance.md), including complete
+streaming lifetimes and concurrent helpers. Prefer one discovery owner per
+application; dispatch its observations rather than creating a helper for every
+consumer. Local macOS results do not establish cost or recovery bounds for other
+backends, and a slow consumer delays supervision rather than providing a cheap
+independent watchdog.
 
 Terminate, kill, and reader cleanup share a five-second budget per cleanup
 operation. OS process creation and waiting for a concurrent lifecycle operation
