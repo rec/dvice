@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-10-01T13:13:30.626456Z"
+exclude-newer = "2026-10-03T15:05:05.871547Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -192,7 +192,7 @@ wheels = [
 
 [[package]]
 name = "dvice"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
