@@ -1,0 +1,995 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Manage unreliable audio devices">
+      
+      
+      
+        <link rel="canonical" href="https://rec.github.io/dvice/discovery-performance/">
+      
+      
+      
+        <link rel="prev" href="./..">
+      
+      
+        <link rel="next" href="../reference/dvice/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.73">
+    
+    
+      
+        <title>Discovery performance qualification - dvice</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.4ab2de0c.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="dvice" class="md-header__button md-logo" aria-label="dvice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dvice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Discovery performance qualification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="dvice" class="md-nav__button md-logo" aria-label="dvice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    dvice
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  dvice
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Discovery performance qualification
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Discovery performance qualification
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reproduce
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Local results
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direct-streaming-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Direct streaming results
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisions-closing-review-finding-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Decisions closing review finding 14
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discovery-health-regression-measurement" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Discovery-health regression measurement
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qualification-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Qualification limits
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  API Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/dvice/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>dvice
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3_1">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>dvice
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  device
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  discovery
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/health/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  health
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/poller/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  poller
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/supervision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  supervision
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dvice/worker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  worker
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reproduce
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Local results
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direct-streaming-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Direct streaming results
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisions-closing-review-finding-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Decisions closing review finding 14
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discovery-health-regression-measurement" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Discovery-health regression measurement
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qualification-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Qualification limits
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+
+<h1 id="discovery-performance-qualification">Discovery performance qualification<a class="headerlink" href="#discovery-performance-qualification" title="Permanent link">&para;</a></h1>
+<p>Measured 8 October 2026. No audio streams were opened or recorded. These are
+local measurements, not a guarantee for all backends or device inventories.</p>
+<h2 id="reproduce">Reproduce<a class="headerlink" href="#reproduce" title="Permanent link">&para;</a></h2>
+<p>Run <code>uv run --frozen python scripts/discovery_benchmark.py</code> from dvice. The default
+run makes 100 cached queries (including JSON serialization) and 10 fresh isolated
+queries. It prints endpoint counts, not device names. Fresh-query latency includes
+Python and CLI imports, PortAudio initialization, enumeration, protocol transfer,
+and verified helper exit. The initial import is measured separately in the host.
+The default run also supervises one real streaming helper for 16 seconds at a
+0.1-second consumer interval, including repeated healthy-helper replacement.
+Streaming output records helper generations, consumed observations, time to first
+observation, parent CPU (including reader threads), helper CPU, and combined CPU
+as a percentage of one core. Its elapsed time includes startup and final cleanup.
+Reaped helper CPU is collected only after all helpers are stopped, so it includes
+the complete lifetime of each generation. Failed helpers or a run with no valid
+observation abort rather than producing a healthy-refresh baseline.</p>
+<p>Run <code>uv run --frozen python scripts/discovery_benchmark.py --pollers 4</code> to measure
+four concurrent discovery owners. Run with <code>--consumer-interval 2 --fresh-queries 1</code>
+to demonstrate slower consumer supervision. Use <code>--stream-seconds</code> for longer
+runs. Keep at least 16 seconds when evaluating refresh cost; shorter measurements
+can contain fewer generations or no completed refresh at all.</p>
+<p>Fresh/streaming helper CPU is reported on platforms with the standard-library
+<code>resource</code> module; elsewhere those metrics and the combined CPU percentage are
+null, not zero. Parent CPU remains available. Counts include all enumerated
+endpoints, not just inputs. Warm queries are back-to-back; they do not measure
+device churn or hot-plug recovery latency.</p>
+<h2 id="local-results">Local results<a class="headerlink" href="#local-results" title="Permanent link">&para;</a></h2>
+<p>macOS 14.5, Apple Silicon, Python 3.13.12, PortAudio 19.7.0-devel, four endpoints.
+Three runs without helper errors:</p>
+<table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th>Observed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cached enumeration and JSON, median wall time</td>
+<td>15.5 to 16.3 microseconds</td>
+</tr>
+<tr>
+<td>Cached enumeration and JSON, mean CPU time</td>
+<td>18.0 to 18.8 microseconds</td>
+</tr>
+<tr>
+<td>Fresh isolated query, median wall time</td>
+<td>240 to 273 milliseconds</td>
+</tr>
+<tr>
+<td>Fresh isolated query, maximum wall time</td>
+<td>266 to 300 milliseconds</td>
+</tr>
+<tr>
+<td>Fresh helper, mean CPU time, final run</td>
+<td>158 milliseconds</td>
+</tr>
+<tr>
+<td>Initial host PortAudio import</td>
+<td>110 to 443 milliseconds</td>
+</tr>
+</tbody>
+</table>
+<p>At ten cached queries per second, the measured enumeration/serialization CPU
+would be about 0.02% of one core, excluding loop and supervision overhead. Fresh
+helper startup is the larger cost here: 158 ms of helper CPU every five seconds
+is about 3.2% of one core per poller, excluding parent-side work. This is an
+estimate from one-shot helpers, not a measurement of streaming helpers. Costs
+scale with independent poller instances.</p>
+<p>The existing 0.1-second enumeration interval and five-second healthy-helper
+refresh remain unchanged. Cached polling cannot make newly initialized PortAudio
+devices appear; the fresh-helper cadence is still necessary. A large consumer
+interval delays refresh and fault supervision because <code>devices()</code> performs them.</p>
+<p>A later repeat reported zero endpoints in both paths (135 ms median fresh-query
+latency). It is not included in the four-endpoint figures above. No hardware or
+audio-service reset was performed, and the reason for that inventory change was
+not established. These runs cannot prove physical device availability or recovery.</p>
+<h2 id="direct-streaming-results">Direct streaming results<a class="headerlink" href="#direct-streaming-results" title="Permanent link">&para;</a></h2>
+<p>Further measurements on the same Mac reported four endpoints throughout each
+run. Native enumeration was used; no streams were opened. All helpers remained
+healthy. These are short local runs, not sustained worst-case bounds.</p>
+<table>
+<thead>
+<tr>
+<th>Discovery owners</th>
+<th>Consumer interval</th>
+<th>Duration</th>
+<th>Generations per owner</th>
+<th>Parent CPU</th>
+<th>Helper CPU</th>
+<th>Total share of one core</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0.1 s</td>
+<td>16.04 s</td>
+<td>4</td>
+<td>0.068 s</td>
+<td>0.499 s</td>
+<td>3.53%</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0.1 s</td>
+<td>16.01 s</td>
+<td>4 each</td>
+<td>0.206 s</td>
+<td>2.125 s</td>
+<td>14.57%</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2 s</td>
+<td>16.01 s</td>
+<td>3</td>
+<td>0.056 s</td>
+<td>0.371 s</td>
+<td>2.67%</td>
+</tr>
+</tbody>
+</table>
+<p>The fast-consumer single-owner run delivered its first observation in 207 ms.
+The four-owner run delivered first observations in 314 to 419 ms. With a
+two-second consumer interval, the first observation took 2.00 seconds and fewer
+refreshes completed. That lower CPU percentage is <strong>not</strong> a free optimization:
+the consumer delays both refresh and fault supervision. Reader threads continue
+running regardless of the consumer interval.</p>
+<h2 id="decisions-closing-review-finding-14">Decisions closing review finding 14<a class="headerlink" href="#decisions-closing-review-finding-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Retain the 0.1-second worker enumeration and five-second healthy refresh.
+  Direct streaming measurements support the earlier approximate CPU estimate;
+  they do not justify trading away the agreed discovery responsiveness.</li>
+<li>Prefer one discovery owner per application. Dispatch its observations to the
+  application's interested components rather than starting independent pollers
+  for each component. The new non-consuming <code>status</code> permits independent readers
+  to share one poller without consuming each other's observations. No shared
+  daemon, cross-process cache,
+  new dependency, or production API is introduced.</li>
+<li>Keep supervision consumer-driven and document the consequence. Choose a short
+  consumer interval for responsive supervision; a five-second refresh cadence is
+  not an independent watchdog or a hard five-second detection deadline.</li>
+<li>Treat backend and inventory qualification as deployment evidence, not an
+  indefinitely open software defect. The benchmark is reproducible; these local
+  figures must not become universal cost or recovery promises.</li>
+</ul>
+<p>Finding 14 is closed for measurement tooling, local evidence, and the explicit
+cadence/ownership decisions. No production cadence or API changed.</p>
+<h2 id="discovery-health-regression-measurement">Discovery-health regression measurement<a class="headerlink" href="#discovery-health-regression-measurement" title="Permanent link">&para;</a></h2>
+<p>After adding cached health observations and independent status copies, a further
+single-owner run used the same four-endpoint Mac inventory and 0.1-second
+consumer interval. It read <code>status</code> on each control-loop iteration and counted
+new observations by sequence. Four generations over 16.01 seconds used 0.122 s
+of parent CPU and 0.603 s of helper CPU, totaling 4.53% of one core. First
+observation arrived in 311 ms. No cadence or helper-count change was introduced.
+The earlier 3.53% result and this short follow-up are separate local measurements,
+not a controlled attribution of the difference to the new feature. Independent
+reader copies have workload-dependent cost; this run used one reader.</p>
+<h2 id="qualification-limits">Qualification limits<a class="headerlink" href="#qualification-limits" title="Permanent link">&para;</a></h2>
+<p>Windows and Linux backends, larger device inventories, and physical hot-plug or
+audio-service recovery were not exercised. Concurrent owners were measured only
+on macOS with four endpoints. On Windows, helper CPU needs an OS profiler because
+the standard library does not provide the child-CPU accounting used here. Repeat
+these workloads on target machines before committing to a platform-specific
+performance budget. Native-backend stalls remain covered by supervision, not
+this performance benchmark. No synthetic inventory would establish the cost of
+real native enumeration with that many devices.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.77dd0ce9.min.js"></script>
+      
+    
+  </body>
+</html>

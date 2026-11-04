@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+        <loc>https://rec.github.io/dvice/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/discovery-performance/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/device/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/discovery/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/health/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/poller/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/supervision/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/dvice/reference/dvice/worker/</loc>
+      </url>
+</urlset>
