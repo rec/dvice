@@ -13,7 +13,13 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "ty", "pyupgrade"]
+dev = [
+    "pytest",
+    "ruff",
+    "ty",
+    "pyupgrade",
+    "reccy",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -27,3 +33,6 @@ quote-style = "single"
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+
+[tool.uv.sources]
+reccy = { git = "ssh://git@github.com/rec/reccy.git", branch = "main" }
